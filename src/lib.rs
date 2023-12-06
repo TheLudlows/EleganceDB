@@ -1,5 +1,9 @@
+extern crate core;
+
 pub mod block;
 pub mod BlockBuilder;
+mod table;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
