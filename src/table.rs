@@ -2,6 +2,10 @@
 #![allow(dead_code)] // TODO(you): remove this lint after implementing this mod
 
 
+mod iterator;
+mod builder;
+mod tests;
+
 use std::fs::{File};
 use std::io::Write;
 use std::mem::size_of;
@@ -9,10 +13,13 @@ use std::os::windows::fs::FileExt;
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use bytes::{Buf, BufMut, Bytes};
 
 use crate::block::Block;
+
+pub type BlockCache = moka::sync::Cache<(usize, usize), Arc<Block>>;
+
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockMeta {
@@ -54,6 +61,10 @@ impl BlockMeta {
         }
         vec
     }
+
+    pub fn size(&self) -> usize {
+        size_of::<u64>() + size_of::<u16>() + self.first_key.len()
+    }
 }
 
 /// A file object.
@@ -61,8 +72,8 @@ pub struct FileObject(File);
 
 impl FileObject {
     pub fn read(&self, offset: u64, len: u64) -> Result<Vec<u8>> {
-        let mut buf = Vec::with_capacity(len as usize);
-        self.0.seek_read(&mut buf, offset)?;
+        let mut buf = vec![0;len as usize];
+        let r = self.0.seek_read(&mut buf, offset)?;
         Ok(buf)
     }
 
@@ -78,7 +89,7 @@ impl FileObject {
             std::fs::create_dir_all(parent_dir).expect("[FileObject::create] create dir fail");
         }
         // create a new file and write the data
-        let mut file = File::create(path).expect("[FileObject::create] create file fail");
+        let mut file = File::options().write(true).read(true).create(true).truncate(true).open(path).expect("[FileObject::create] create file fail");
         file.write_all(&data[..])
             .expect("[FileObject::create] write file fail");
         file.flush().expect("[FileObject::create] flush file fail");
@@ -86,7 +97,7 @@ impl FileObject {
     }
 
     pub fn open(path: &Path) -> Result<Self> {
-        let file = File::open(path)?;
+        let file = File::options().write(true).read(true).open(path)?;
         Ok(Self(file))
     }
 }
@@ -103,27 +114,28 @@ pub struct SsTable {
     block_metas: Vec<BlockMeta>,
     /// The offset that indicates the start point of meta blocks in `file`.
     block_meta_offset: u64,
-
     sst_id: usize,
+    block_cache:Option<Arc<BlockCache>>
 }
 
 impl SsTable {
     #[cfg(test)]
     pub(crate) fn open_for_test(file: FileObject) -> Result<Self> {
-        Self::open(0, file)
+        Self::open(0, file, None)
     }
 
     /// Open SSTable from a file.
-    pub fn open(id: usize, file: FileObject) -> Result<Self> {
+    pub fn open(id: usize, file: FileObject, block_cache: Option<Arc<BlockCache>>) -> Result<Self> {
         let len = file.size();
         let raw_meta_off = file.read(len - size_of::<u64>() as u64, size_of::<u64>() as u64)?;
         let meta_off = (&raw_meta_off[..]).get_u64();
-        let raw_meta = file.read(meta_off, len - meta_off)?;
+        let raw_meta = file.read(meta_off, len - size_of::<u64>() as u64 - meta_off)?;
         Ok(Self {
             file,
             block_metas: BlockMeta::decode_block_meta(&raw_meta[..]),
             block_meta_offset: meta_off,
             sst_id: id,
+            block_cache
         })
     }
 
@@ -142,14 +154,19 @@ impl SsTable {
 
     /// Read a block from disk, with block cache. (Day 4)
     pub fn read_block_cached(&self, block_idx: usize) -> Result<Arc<Block>> {
-        unimplemented!()
+        if let Some(ref cache) = self.block_cache {
+            cache.try_get_with((self.sst_id, block_idx), || self.read_block(block_idx))
+                .map_err(|e| anyhow!("{}", e))
+        } else {
+            self.read_block(block_idx)
+        }
     }
 
     /// Find the block that may contain `key`.
     /// Note: You may want to make use of the `first_key` stored in `BlockMeta`.
     /// You may also assume the key-value pairs stored in each consecutive block are sorted.
     pub fn find_block_idx(&self, key: &[u8]) -> usize {
-       self.block_metas.partition_point(|e| e.first_key <= key)
+       self.block_metas.partition_point(|e| e.first_key <= key).saturating_sub(1)
     }
 
     /// Get number of data blocks.
@@ -161,11 +178,13 @@ impl SsTable {
 }
 #[test]
 fn test() {
-    let v = vec![1];
-    let r = v.partition_point(|e|*e<0);
+    let v = vec![1,2,3];
+    let r = v.partition_point(|e|*e<0).saturating_sub(1);
     println!("{}", r);
-    let r = v.partition_point(|e|*e>0);
+    let r = v.partition_point(|e|*e<=1);
     println!("{}", r);
-    let r = v.partition_point(|e|*e==1);
+    let r = v.partition_point(|e|*e<=2);
+    println!("{}", r);
+    let r = v.partition_point(|e|*e>2);
     println!("{}", r);
 }

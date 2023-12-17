@@ -3,6 +3,7 @@ extern crate core;
 pub mod block;
 pub mod BlockBuilder;
 mod table;
+mod iterators;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
@@ -21,6 +22,5 @@ mod tests {
     #[test]
     fn test_checksum() {
         let checksum = crc32fast::hash(b"foo bar baz");
-
     }
 }
