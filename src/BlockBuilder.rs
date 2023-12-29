@@ -2,7 +2,7 @@ use bytes::BufMut;
 use super::block::Block;
 
 
-static SIZE_OF_META:usize = 2;
+static SIZE_OF_META: usize = 2;
 
 /// Builds a block.
 pub struct BlockBuilder {
@@ -23,18 +23,18 @@ impl BlockBuilder {
 
     #[must_use]
     pub fn add(&mut self, key: &[u8], value: &[u8]) -> bool {
-        if key.is_empty(){
+        if key.is_empty() {
             return false;
         }
         if self.cur_size() + key.len() + value.len() + 4 > self.capacity {
             return false;
         }
         // check order todo
-       /* if !self.offsets.is_empty() {
-            let last_off = *self.offsets.last().expect("Offset get last err") as usize;
-            let last_put_entry = &self.data[last_off..];
-            []
-        }*/
+        /* if !self.offsets.is_empty() {
+             let last_off = *self.offsets.last().expect("Offset get last err") as usize;
+             let last_put_entry = &self.data[last_off..];
+             []
+         }*/
         self.offsets.push(self.data.len() as u16);
         self.data.put_u16(key.len() as u16);
         self.data.put_slice(key);
@@ -46,7 +46,9 @@ impl BlockBuilder {
         self.data.is_empty()
     }
     pub fn build(self) -> Block {
-       Block::new(self.data, self.offsets)
+        let b = Block::new(self.data, self.offsets);
+        println!("{}", b);
+        b
     }
 
     pub fn cur_size(&self) -> usize {

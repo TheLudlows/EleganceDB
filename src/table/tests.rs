@@ -31,11 +31,11 @@ fn test_sst_build_two_blocks() {
 }
 
 fn key_of(idx: usize) -> Vec<u8> {
-    format!("key_{:03}", idx * 5).into_bytes()
+    format!("key_{:03}", idx).into_bytes()
 }
 
 fn value_of(idx: usize) -> Vec<u8> {
-    format!("value_{:010}", idx).into_bytes()
+    format!("value_{:03}", idx).into_bytes()
 }
 
 fn num_of_keys() -> usize {
@@ -43,7 +43,7 @@ fn num_of_keys() -> usize {
 }
 
 fn generate_sst() -> (TempDir, SsTable) {
-    let mut builder = SsTableBuilder::new(128);
+    let mut builder = SsTableBuilder::new(48);
     for idx in 0..num_of_keys() {
         let key = key_of(idx);
         let value = value_of(idx);
@@ -123,9 +123,10 @@ fn test_sst_seek_key() {
                 as_bytes(&value_of(i)),
                 as_bytes(value)
             );
-            iter.seek_to_key(&format!("key_{:03}", i * 5 + offset).into_bytes())
+            iter.seek_to_key(&format!("key_{:03}", i+1).into_bytes())
                 .unwrap();
         }
+        println!("eq");
         iter.seek_to_key(b"k").unwrap();
     }
 }

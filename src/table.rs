@@ -6,6 +6,7 @@ mod iterator;
 mod builder;
 mod tests;
 
+use std::fmt;
 use std::fs::{File};
 use std::io::Write;
 use std::mem::size_of;
@@ -40,7 +41,6 @@ impl BlockMeta {
             size += std::mem::size_of::<u16>();
             size += meta.first_key.len();
         }
-        buf.reverse();
         let original_len = buf.len();
         for meta in block_meta {
             buf.put_u64(meta.offset);
@@ -74,6 +74,7 @@ impl FileObject {
     pub fn read(&self, offset: u64, len: u64) -> Result<Vec<u8>> {
         let mut buf = vec![0;len as usize];
         let r = self.0.seek_read(&mut buf, offset)?;
+        println!("read buf {:?}", buf);
         Ok(buf)
     }
 
@@ -117,7 +118,11 @@ pub struct SsTable {
     sst_id: usize,
     block_cache:Option<Arc<BlockCache>>
 }
-
+impl fmt::Display for SsTable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "block meta {:?}, offset {:?}", &self.block_metas, self.block_meta_offset)
+    }
+}
 impl SsTable {
     #[cfg(test)]
     pub(crate) fn open_for_test(file: FileObject) -> Result<Self> {
@@ -166,6 +171,9 @@ impl SsTable {
     /// Note: You may want to make use of the `first_key` stored in `BlockMeta`.
     /// You may also assume the key-value pairs stored in each consecutive block are sorted.
     pub fn find_block_idx(&self, key: &[u8]) -> usize {
+        for meta in &self.block_metas {
+            println!("{:?}", meta)
+        }
        self.block_metas.partition_point(|e| e.first_key <= key).saturating_sub(1)
     }
 

@@ -13,9 +13,9 @@ fn main() {
         .expect("[FileObject::create] write file fail");
     file.flush().expect("[FileObject::create] flush file fail");
 
-    let mut file = File::open(&path).unwrap();
-    let r = file.seek(SeekFrom::Start(0)).expect("");
-    println!("seek {}", r);
+   // let mut file = File::open(&path).unwrap();
+   // let r = file.seek(SeekFrom::Start(0)).expect("");
+   // println!("seek {}", r);
     //reader.seek(SeekFrom::Start(0)).unwrap();
     let mut buf = vec![0;6];
 
@@ -25,6 +25,7 @@ fn main() {
     println!("{:?}", file.metadata());
 
     //let r = file.read_exact(buf.as_mut_slice());
-    file.seek_read(buf.as_mut_slice(), 0).unwrap();
+    file.seek_read(buf.as_mut_slice(), 3).unwrap();
+    println!("{:?}", "abc123".as_bytes());
     println!("{:?}", buf);
 }

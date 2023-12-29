@@ -44,6 +44,7 @@ impl SsTableBuilder {
         if !ok {
             self.finish_block();
             let ok = self.block_builder.add(key, value);
+            self.start_key.put(key);
             assert!(ok);
         }
     }
@@ -52,6 +53,7 @@ impl SsTableBuilder {
         let block = mem::replace(&mut self.block_builder, BlockBuilder::new(self.block_size));
         let meta = BlockMeta { offset: self.data.len() as u64, first_key: mem::take(&mut self.start_key).into() };
         self.data.put(block.build().encode());
+        //println!("encode table data{:?}, len {}", self.data, self.data.len());
         self.meta.push(meta)
     }
 
@@ -84,6 +86,7 @@ impl SsTableBuilder {
             sst_id: id,
             block_cache,
         };
+        println!("table is {}", sst);
         Ok(sst)
     }
 
