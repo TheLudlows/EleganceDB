@@ -44,7 +44,7 @@ impl BlockIterator {
 
     /// Returns the key of the current entry.
     pub fn key(&self) -> &[u8] {
-        if(self.key.is_empty())
+        if self.key.is_empty()
         {
             println!("err block {}", self.block)
         }

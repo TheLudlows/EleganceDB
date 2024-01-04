@@ -4,6 +4,7 @@ pub mod block;
 pub mod BlockBuilder;
 mod table;
 mod iterators;
+mod skip_list;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
