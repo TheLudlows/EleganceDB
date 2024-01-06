@@ -1,5 +1,5 @@
 use bytes::BufMut;
-use super::block::Block;
+use crate::block::Block;
 
 
 static SIZE_OF_META: usize = 2;

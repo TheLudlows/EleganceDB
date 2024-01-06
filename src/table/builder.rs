@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use bytes::{BufMut};
-use crate::BlockBuilder::BlockBuilder;
+use crate::block::block_builder::BlockBuilder;
 
 use super::{BlockCache, BlockMeta, FileObject, SsTable};
 

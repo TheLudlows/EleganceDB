@@ -1,10 +1,10 @@
 extern crate core;
 
 pub mod block;
-pub mod BlockBuilder;
 mod table;
 mod iterators;
 mod skip_list;
+mod memtable;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

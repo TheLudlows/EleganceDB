@@ -3,6 +3,7 @@ mod list;
 mod key;
 pub use arena::*;
 pub use key::*;
+pub use list::*;
 
 const MAX_HEIGHT: usize = 20;
 const HEIGHT_INCREASE: u32 = u32::MAX / 3;
@@ -32,7 +33,7 @@ mod tests {
         for i in 0..1000 {
             let key = Bytes::from(format!("{:05}{:08}", i * 10 + 5, 0));
             let value = Bytes::from(format!("{:05}", i));
-            list.put(key, value);
+            let r = list.put(key, value);
         }
         let mut cases = vec![
             ("00001", false, false, Some("00005")),

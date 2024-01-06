@@ -2,7 +2,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 pub mod iterator;
 mod tests;
-
+pub mod block_builder;
 #[derive(Default, Debug)]
 pub struct Block {
     data: Vec<u8>,
