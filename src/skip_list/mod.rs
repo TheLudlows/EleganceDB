@@ -1,6 +1,7 @@
 mod arena;
 mod list;
 mod key;
+
 pub use arena::*;
 pub use key::*;
 pub use list::*;
@@ -76,12 +77,22 @@ mod tests {
     #[test]
     fn test_skl() {
         let comp = FlexibleCompartor::new(8);
-        let skl = Skiplist::with_capacity(comp, 1024*1024);
+        let skl = Skiplist::with_capacity(comp, 1024 * 1024);
         let mut rng = rand::thread_rng();
         for _ in 0..1000 {
-           let _ = skl.put(format!("{}", rng.gen_range(0..10000)), "a");
+            let _ = skl.put(format!("{}", rng.gen_range(0..10000)), "a");
         }
-        unsafe {skl.println_list();}
+        unsafe { skl.println_list(); }
+    }
+
+    #[test]
+    fn test_skl_res() {
+        let comp = FlexibleCompartor::new(8);
+        let skl = Skiplist::with_capacity(comp, 1024 * 1024);
+        let mut rng = rand::thread_rng();
+        let r = skl.put(format!("{}", rng.gen_range(0..10000)), "a");
+
+        assert!(r.is_none())
     }
 
     #[test]
@@ -89,6 +100,7 @@ mod tests {
         println!("{}", mem::size_of::<Bytes>());
         println!("{}", mem::size_of::<AtomicPtr<u8>>());
     }
+
     #[test]
     fn test_anena_align() {
         println!("{}", mem::align_of::<Vec<u64>>());
@@ -108,7 +120,7 @@ mod tests {
     #[test]
     fn test_const_fn() {
         let c1 = FixedLengthSuffixComparator::new(1);
-        let c2 =  FixedLengthSuffixComparator::new(2);
-        println!("{:p}, {:p}", &c1,&c2)
+        let c2 = FixedLengthSuffixComparator::new(2);
+        println!("{:p}, {:p}", &c1, &c2)
     }
 }

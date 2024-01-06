@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use crate::skip_list::{KeyComparator, Skiplist};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 pub struct MemTable<C: KeyComparator> {
     skl: Skiplist<C>,
@@ -20,8 +20,11 @@ impl<C: KeyComparator> MemTable<C> {
     }
 
     pub fn put(&self, key: &[u8], val: &[u8]) -> Result<()> {
-        self.skl.put(Bytes::copy_from_slice(key), Bytes::copy_from_slice(val));
-        Ok(())
+        let r = self.skl.put(Bytes::copy_from_slice(key), Bytes::copy_from_slice(val));
+        match r {
+            None => {Ok(())}
+            Some(_) => {Err(anyhow!("put item error"))}
+        }
     }
 }
 
