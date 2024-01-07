@@ -1,6 +1,8 @@
+use std::ops::{Bound, Range};
 use bytes::Bytes;
-use crate::skip_list::{KeyComparator, Skiplist};
+use crate::skip_list::{IterRef, KeyComparator, Skiplist};
 use anyhow::{anyhow, Result};
+use crate::iterators::StorageIterator;
 
 pub struct MemTable<C: KeyComparator> {
     skl: Skiplist<C>,
@@ -26,8 +28,48 @@ impl<C: KeyComparator> MemTable<C> {
             Some(_) => {Err(anyhow!("put item error"))}
         }
     }
+
+    pub fn scan(&self, left: Bound<&[u8]>, right: Bound<&[u8]>) -> MemTableIterator<C> {
+
+        MemTableIterator::create(self)
+    }
 }
 
+struct MemTableIterator<'a, C> {
+    iter: IterRef<'a, C>,
+    item:(Bytes, Bytes),
+}
+
+impl<'a, C: KeyComparator> MemTableIterator<'a,C> {
+    pub fn create(mem_table: &'a MemTable<C>) -> Self{
+        Self {
+            iter: mem_table.skl.iter_ref(),
+            item: (Bytes::new(), Bytes::new()),
+        }
+    }
+}
+
+impl<'a, C: KeyComparator>  StorageIterator for MemTableIterator<'a, C> {
+    fn value(&self) -> &[u8] {
+        &self.item.1[..]
+    }
+
+    fn key(&self) -> &[u8] {
+        &self.item.0[..]
+    }
+
+    fn is_valid(&self) -> bool {
+        self.iter.valid()
+    }
+
+    fn next(&mut self) -> Result<()> {
+        self.iter.next();
+        let key = self.iter.key().clone();
+        let val = self.iter.value().clone();
+        self.item = (key, val);
+        Ok(())
+    }
+}
 #[cfg(test)]
 mod test {
     use bytes::Bytes;

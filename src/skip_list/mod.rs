@@ -96,6 +96,36 @@ mod tests {
     }
 
     #[test]
+    fn test_skl_iter() {
+        let comp = FlexibleCompartor::new(8);
+        let skl = Skiplist::with_capacity(comp, 1024 * 1024);
+        let mut rng = rand::thread_rng();
+        let r = skl.put(format!("{}", rng.gen_range(0..10000)), "a");
+        skl.println_list();
+        let mut it = skl.iter_ref();
+        it.seek_to_first();
+        println!("{:?}, {:?}", it.key(), it.value());
+        it.next();
+        assert!(!it.valid())
+    }
+
+    #[test]
+    fn test_skl_rang_iter() {
+        let comp = FlexibleCompartor::new(8);
+        let skl = Skiplist::with_capacity(comp, 1024 * 1024);
+        let mut rng = rand::thread_rng();
+
+        for i in 0..100 {
+            let r = skl.put(format!("{}", rng.gen_range(0..10000)), "a");
+        }
+
+        let mut it = skl.range_ref();
+        it.seek_to_first();
+        println!("{:?}, {:?}", it.key(), it.value());
+        it.next();
+        assert!(!it.valid())
+    }
+    #[test]
     fn test_bytes() {
         println!("{}", mem::size_of::<Bytes>());
         println!("{}", mem::size_of::<AtomicPtr<u8>>());
