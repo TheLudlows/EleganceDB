@@ -35,7 +35,7 @@ impl<C: KeyComparator> MemTable<C> {
     }
 }
 
-struct MemTableIterator<'a, C> {
+pub struct MemTableIterator<'a, C> {
     iter: IterRef<'a, C>,
     item:(Bytes, Bytes),
 }

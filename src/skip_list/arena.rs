@@ -9,6 +9,7 @@ use std::{
 use super::Allocator;
 use std::mem;
 
+#[derive(Debug)]
 struct InnerArena {
     len: AtomicU32,
     cap: usize,
@@ -23,6 +24,7 @@ impl Drop for InnerArena {
     }
 }
 
+#[derive(Debug)]
 pub struct Arena {
     inner: Arc<InnerArena>,
 }

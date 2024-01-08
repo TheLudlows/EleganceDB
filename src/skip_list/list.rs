@@ -45,13 +45,14 @@ impl Node {
     }
 }
 
+#[derive(Debug)]
 struct SkiplistCore {
     height: AtomicUsize,
     head: NonNull<Node>,
     arena: Arena,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Skiplist<C> {
     core: Arc<SkiplistCore>,
     c: C,
@@ -110,7 +111,13 @@ impl<C> Skiplist<C> {
 }
 
 impl<C: KeyComparator> Skiplist<C> {
-    pub fn find_near(&self, key: &[u8], less: bool, allow_equal: bool) -> *const Node {
+
+    pub fn find_near_value(&self, key: &[u8], less: bool, allow_equal: bool) -> &Bytes {
+        let ptr = self.find_near(key, less, allow_equal);
+        unsafe { &(*ptr).value }
+    }
+
+        pub fn find_near(&self, key: &[u8], less: bool, allow_equal: bool) -> *const Node {
         unsafe {
             let mut cursor: *const Node = self.core.head.as_ptr();
             let mut level = self.height();
@@ -319,7 +326,7 @@ impl<C: KeyComparator> Skiplist<C> {
         }
     }
 
-    pub fn range_ref<R: RangeBounds<Bytes>>(&self, lower: Bound<&[u8]>, upper: Bound<&[u8]>) -> RangeRef<C, R> {
+    pub fn range_ref(&self, lower: Bound<&[u8]>, upper: Bound<&[u8]>) -> RangeRef<C> {
         let (l, r) = (map_bound(lower), map_bound(upper));
         RangeRef::create(self, (l, r))
     }
@@ -369,38 +376,41 @@ pub struct IterRef<'a, C> {
     cursor: *const Node,
 }
 
-pub struct RangeRef<'a, C: KeyComparator, R: RangeBounds<Bytes>> {
+#[derive(Debug)]
+pub struct RangeRef<'a, C: KeyComparator> {
     list: &'a Skiplist<C>,
     head: *const Node,
     tail: *const Node,
-    bound: R,
+    start: Bound<Bytes>,
+    end: Bound<Bytes>,
 }
 
-impl<C: KeyComparator, R: RangeBounds<Bytes>> RangeRef<'_, C, R> {
-    pub fn create(skl: &Skiplist<C>, r: R) -> Self {
+impl<'a, C: KeyComparator> RangeRef<'a, C> {
+    pub fn create(skl: &'a Skiplist<C>, r: (Bound<Bytes>, Bound<Bytes>)) -> Self {
         let mut range_it = Self {
             list: skl,
             head: ptr::null(),
             tail: ptr::null(),
-            bound: r,
+            start: r.0,
+            end: r.1
         };
-        let start = range_it.bound.start_bound();
-        let end = range_it.bound.end_bound();
+        let start = &range_it.start;
+        let end = &range_it.end;
         match start {
-            Bound::Included(start_key) => {
+            Bound::Included(ref start_key) => {
                 range_it.head = range_it.list.find_near(start_key, false, true);
             }
-            Bound::Excluded(start_key) => {
+            Bound::Excluded(ref start_key) => {
                 range_it.head = range_it.list.find_near(start_key, false, false);
             }
             Bound::Unbounded => {}
         }
         match end {
-            Bound::Included(end_key) => {
-                range_it.tail = range_it.list.find_near(end_key, true, true);
+            Bound::Included(ref end_key) => {
+                range_it.tail = range_it.list.find_near(end_key, false, false);
             }
-            Bound::Excluded(end_key) => {
-                range_it.tail = range_it.list.find_near(end_key, true, false);
+            Bound::Excluded(ref end_key) => {
+                range_it.tail = range_it.list.find_near(end_key, false, true);
             }
             Bound::Unbounded => {}
         }
@@ -411,11 +421,13 @@ impl<C: KeyComparator, R: RangeBounds<Bytes>> RangeRef<'_, C, R> {
     }
 
     pub fn key(&self) -> &Bytes {
-        unimplemented!()
+        assert!(self.valid());
+        unsafe { &(*self.head).key }
     }
 
     pub fn value(&self) -> &Bytes {
-        unimplemented!()
+        assert!(self.valid());
+        unsafe { &(*self.head).value }
     }
 
     pub fn next(&mut self) {

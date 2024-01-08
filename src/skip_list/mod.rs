@@ -19,8 +19,9 @@ pub trait Allocator {
 mod tests {
     use std::alloc::Layout;
     use std::mem;
+    use std::ops::Bound;
     use std::sync::atomic::AtomicPtr;
-    use bytes::Bytes;
+    use bytes::{Buf, Bytes};
     use rand::{Rng};
 
     use crate::skip_list::{FixedLengthSuffixComparator, FlexibleCompartor};
@@ -115,14 +116,25 @@ mod tests {
         let skl = Skiplist::with_capacity(comp, 1024 * 1024);
         let mut rng = rand::thread_rng();
 
-        for i in 0..100 {
-            let r = skl.put(format!("{}", rng.gen_range(0..10000)), "a");
+        for i in 0..10 {
+            let r = skl.put(format!("{}", i), i.to_string());
+        }
+        for i in 20..30 {
+            let r = skl.put(format!("{}", i), i.to_string());
+        }
+        skl.println_list();
+
+
+        let left = "1".as_bytes();
+        let start = Bound::Included(left);
+        let right = "2".as_bytes();
+        let end = Bound::Included(right);
+        let mut it = skl.range_ref(start, end);
+        while it.valid() {
+            println!("{:?}, {:?}",it.key(), it.value());
+            it.next();
         }
 
-        let mut it = skl.range_ref();
-        it.seek_to_first();
-        println!("{:?}, {:?}", it.key(), it.value());
-        it.next();
         assert!(!it.valid())
     }
     #[test]
