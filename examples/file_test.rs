@@ -1,10 +1,10 @@
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::os::windows::fs::FileExt;
+
 use tempfile::tempdir;
 
 fn main() {
-
     let dir = tempdir().unwrap();
     let path = dir.path().join("1.sst");
 
@@ -13,11 +13,11 @@ fn main() {
         .expect("[FileObject::create] write file fail");
     file.flush().expect("[FileObject::create] flush file fail");
 
-   // let mut file = File::open(&path).unwrap();
-   // let r = file.seek(SeekFrom::Start(0)).expect("");
-   // println!("seek {}", r);
+    // let mut file = File::open(&path).unwrap();
+    // let r = file.seek(SeekFrom::Start(0)).expect("");
+    // println!("seek {}", r);
     //reader.seek(SeekFrom::Start(0)).unwrap();
-    let mut buf = vec![0;6];
+    let mut buf = vec![0; 6];
 
 
     let len = file.metadata().expect("").len();

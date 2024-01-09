@@ -3,10 +3,11 @@ use std::sync::Arc;
 use bytes::Bytes;
 use tempfile::{tempdir, TempDir};
 
-use super::*;
 use crate::iterators::StorageIterator;
 use crate::table::builder::SsTableBuilder;
 use crate::table::iterator::SsTableIterator;
+
+use super::*;
 
 #[test]
 fn test_sst_build_single_key() {
@@ -123,7 +124,7 @@ fn test_sst_seek_key() {
                 as_bytes(&value_of(i)),
                 as_bytes(value)
             );
-            iter.seek_to_key(&format!("key_{:03}", i+1).into_bytes())
+            iter.seek_to_key(&format!("key_{:03}", i + 1).into_bytes())
                 .unwrap();
         }
         println!("eq");

@@ -3,7 +3,9 @@
 
 // TODO(you): remove this lint after implementing this mod
 use std::sync::Arc;
+
 use bytes::{Buf, BufMut};
+
 use crate::block::Block;
 
 /// Iterates on a block.
@@ -71,7 +73,7 @@ impl BlockIterator {
 
     /// Move to the next key in the block.
     pub fn next(&mut self) {
-        self.idx +=1;
+        self.idx += 1;
         self.seek_to(self.idx);
     }
 

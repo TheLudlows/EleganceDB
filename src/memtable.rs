@@ -1,8 +1,11 @@
-use std::ops::{Bound, Range};
-use bytes::Bytes;
-use crate::skip_list::{IterRef, KeyComparator, Skiplist};
+use std::ops::Bound;
+
 use anyhow::{anyhow, Result};
+use bytes::Bytes;
+
 use crate::iterators::StorageIterator;
+use crate::map_bound;
+use crate::skip_list::{KeyComparator, RangeRef, Skiplist};
 
 pub struct MemTable<C: KeyComparator> {
     skl: Skiplist<C>,
@@ -24,32 +27,32 @@ impl<C: KeyComparator> MemTable<C> {
     pub fn put(&self, key: &[u8], val: &[u8]) -> Result<()> {
         let r = self.skl.put(Bytes::copy_from_slice(key), Bytes::copy_from_slice(val));
         match r {
-            None => {Ok(())}
-            Some(_) => {Err(anyhow!("put item error"))}
+            None => { Ok(()) }
+            Some(_) => { Err(anyhow!("put item error")) }
         }
     }
 
     pub fn scan(&self, left: Bound<&[u8]>, right: Bound<&[u8]>) -> MemTableIterator<C> {
-
-        MemTableIterator::create(self)
+        let (lower, upper) = (map_bound(left), map_bound(right));
+        MemTableIterator::create(self, lower, upper)
     }
 }
 
-pub struct MemTableIterator<'a, C> {
-    iter: IterRef<'a, C>,
-    item:(Bytes, Bytes),
+pub struct MemTableIterator<'a, C: KeyComparator> {
+    iter: RangeRef<'a, C>,
+    item: (Bytes, Bytes),
 }
 
-impl<'a, C: KeyComparator> MemTableIterator<'a,C> {
-    pub fn create(mem_table: &'a MemTable<C>) -> Self{
+impl<'a, C: KeyComparator> MemTableIterator<'a, C> {
+    pub fn create(mem_table: &'a MemTable<C>, lower: Bound<Bytes>, upper: Bound<Bytes>) -> Self {
         Self {
-            iter: mem_table.skl.iter_ref(),
+            iter: mem_table.skl.range_ref(lower, upper),
             item: (Bytes::new(), Bytes::new()),
         }
     }
 }
 
-impl<'a, C: KeyComparator>  StorageIterator for MemTableIterator<'a, C> {
+impl<'a, C: KeyComparator> StorageIterator for MemTableIterator<'a, C> {
     fn value(&self) -> &[u8] {
         &self.item.1[..]
     }
@@ -63,16 +66,20 @@ impl<'a, C: KeyComparator>  StorageIterator for MemTableIterator<'a, C> {
     }
 
     fn next(&mut self) -> Result<()> {
-        self.iter.next();
-        let key = self.iter.key().clone();
-        let val = self.iter.value().clone();
+        let kv = self.iter.next();
+        assert!(kv.is_some());
+        let kv = kv.unwrap();
+        let key = kv.0.clone();
+        let val = kv.1.clone();
         self.item = (key, val);
         Ok(())
     }
 }
+
 #[cfg(test)]
 mod test {
     use bytes::Bytes;
+
     use crate::memtable::MemTable;
     use crate::skip_list::FixedLengthSuffixComparator;
 
@@ -87,8 +94,7 @@ mod test {
         let b = "abc".as_bytes();
 
         let bs1 = Bytes::new();
-        let bs:Bytes = bs1.into();
+        let bs: Bytes = bs1.into();
         println!("{:p}", bs.as_ptr());
     }
-
 }

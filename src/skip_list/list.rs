@@ -1,16 +1,18 @@
-use super::Allocator;
-use super::HEIGHT_INCREASE;
-use super::arena::Arena;
-use super::KeyComparator;
-use super::MAX_HEIGHT;
+use std::{mem, ptr, u32};
+use std::ops::Bound;
+use std::ptr::NonNull;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::Ordering::Relaxed;
+
 use bytes::Bytes;
 use rand::Rng;
-use std::ptr::NonNull;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::{mem, ptr, u32};
-use std::ops::{Bound, RangeBounds};
-use std::sync::atomic::Ordering::Relaxed;
+
+use super::Allocator;
+use super::arena::Arena;
+use super::HEIGHT_INCREASE;
+use super::KeyComparator;
+use super::MAX_HEIGHT;
 
 // Uses C layout to make sure tower is at the bottom
 #[derive(Debug)]
@@ -111,13 +113,12 @@ impl<C> Skiplist<C> {
 }
 
 impl<C: KeyComparator> Skiplist<C> {
-
     pub fn find_near_value(&self, key: &[u8], less: bool, allow_equal: bool) -> &Bytes {
         let ptr = self.find_near(key, less, allow_equal);
         unsafe { &(*ptr).value }
     }
 
-        pub fn find_near(&self, key: &[u8], less: bool, allow_equal: bool) -> *const Node {
+    pub fn find_near(&self, key: &[u8], less: bool, allow_equal: bool) -> *const Node {
         unsafe {
             let mut cursor: *const Node = self.core.head.as_ptr();
             let mut level = self.height();
@@ -326,22 +327,15 @@ impl<C: KeyComparator> Skiplist<C> {
         }
     }
 
-    pub fn range_ref(&self, lower: Bound<&[u8]>, upper: Bound<&[u8]>) -> RangeRef<C> {
-        let (l, r) = (map_bound(lower), map_bound(upper));
-        RangeRef::create(self, (l, r))
+    pub fn range_ref(&self, lower: Bound<Bytes>, upper: Bound<Bytes>) -> RangeRef<C> {
+        RangeRef::create(self, (lower, upper))
     }
 
     pub fn mem_size(&self) -> u32 {
         self.core.arena.len()
     }
 }
-pub(crate) fn map_bound(bound: Bound<&[u8]>) -> Bound<Bytes> {
-    match bound {
-        Bound::Included(x) => Bound::Included(Bytes::copy_from_slice(x)),
-        Bound::Excluded(x) => Bound::Excluded(Bytes::copy_from_slice(x)),
-        Bound::Unbounded => Bound::Unbounded,
-    }
-}
+
 impl Drop for SkiplistCore {
     fn drop(&mut self) {
         let mut node = self.head.as_ptr();
@@ -381,18 +375,28 @@ pub struct RangeRef<'a, C: KeyComparator> {
     list: &'a Skiplist<C>,
     head: *const Node,
     tail: *const Node,
+    cursor: *const Node,
     start: Bound<Bytes>,
     end: Bound<Bytes>,
 }
 
 impl<'a, C: KeyComparator> RangeRef<'a, C> {
     pub fn create(skl: &'a Skiplist<C>, r: (Bound<Bytes>, Bound<Bytes>)) -> Self {
+        match &r {
+            (Bound::Excluded(s), Bound::Excluded(e)) => {
+                if s == e {
+                    panic!("range start and end are equal and excluded in skip_list")
+                }
+            }
+            (_, _) => {}
+        }
         let mut range_it = Self {
             list: skl,
             head: ptr::null(),
             tail: ptr::null(),
+            cursor: ptr::null(),
             start: r.0,
-            end: r.1
+            end: r.1,
         };
         let start = &range_it.start;
         let end = &range_it.end;
@@ -401,13 +405,13 @@ impl<'a, C: KeyComparator> RangeRef<'a, C> {
                 range_it.head = range_it.list.find_near(start_key, false, true);
             }
             Bound::Excluded(ref start_key) => {
-                range_it.head = range_it.list.find_near(start_key, false, false);
+                range_it.head = range_it.list.find_near(start_key, false, true);
             }
             Bound::Unbounded => {}
         }
         match end {
             Bound::Included(ref end_key) => {
-                range_it.tail = range_it.list.find_near(end_key, false, false);
+                range_it.tail = range_it.list.find_near(end_key, false, true);
             }
             Bound::Excluded(ref end_key) => {
                 range_it.tail = range_it.list.find_near(end_key, false, true);
@@ -416,26 +420,50 @@ impl<'a, C: KeyComparator> RangeRef<'a, C> {
         }
         range_it
     }
-    pub fn valid(&self) -> bool {
-        !self.head.is_null() && !self.head.eq(&self.tail)
-    }
 
-    pub fn key(&self) -> &Bytes {
-        assert!(self.valid());
-        unsafe { &(*self.head).key }
-    }
-
-    pub fn value(&self) -> &Bytes {
-        assert!(self.valid());
-        unsafe { &(*self.head).value }
-    }
-
-    pub fn next(&mut self) {
-        assert!(self.valid());
-        unsafe {
-            let cursor_offset = (&*self.head).next_offset(0);
-            self.head = self.list.core.arena.get_mut(cursor_offset);
+    pub fn next(&mut self) -> Option<(&Bytes, &Bytes)> {
+        if self.cursor.is_null()
+        {
+            return None;
         }
+
+        if self.cursor == self.tail {
+            return match &self.end {
+                Bound::Included(_) => {
+                    unsafe {
+                        self.cursor = ptr::null();// set null
+                        let node = &*self.cursor;
+                        Some((&node.key, &node.value))
+                    }
+                }
+                Bound::Excluded(_) => { None }
+                Bound::Unbounded => { None }
+            };
+        }
+        if self.cursor == self.head {
+            if let Bound::Excluded(s) = &self.start {
+                unsafe {
+                    let cursor_offset = (&*self.cursor).next_offset(0);
+                    self.cursor = self.list.core.arena.get_mut(cursor_offset);
+                }
+                return self.next();
+            }
+        }
+
+        unsafe {
+            let node = &*self.cursor;
+            let cursor_offset = (&*self.cursor).next_offset(0);
+            self.cursor = self.list.core.arena.get_mut(cursor_offset);
+            Some((&node.key, &node.value))
+        }
+    }
+
+    pub fn seek_to_first(&mut self) {
+        self.cursor = self.head;
+    }
+
+    pub fn valid(&self) -> bool {
+        !self.cursor.is_null()
     }
 }
 

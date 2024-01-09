@@ -6,7 +6,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use bytes::{BufMut};
+use bytes::BufMut;
+
 use crate::block::block_builder::BlockBuilder;
 
 use super::{BlockCache, BlockMeta, FileObject, SsTable};
@@ -79,7 +80,7 @@ impl SsTableBuilder {
         let meta_off = self.data.len() as u64;
         BlockMeta::encode_block_meta(&self.meta, &mut self.data);
         self.data.put_u64(meta_off);
-        let sst  = SsTable {
+        let sst = SsTable {
             file: FileObject::create(path.as_ref(), self.data)?,
             block_metas: self.meta,
             block_meta_offset: meta_off,

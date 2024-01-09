@@ -1,13 +1,13 @@
 use std::{
     ptr,
     sync::{
-        atomic::{AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicU32, Ordering},
     },
 };
+use std::mem;
 
 use super::Allocator;
-use std::mem;
 
 #[derive(Debug)]
 struct InnerArena {
@@ -19,7 +19,7 @@ struct InnerArena {
 impl Drop for InnerArena {
     fn drop(&mut self) {
         unsafe {
-            Vec::from_raw_parts(self.ptr as * mut u8, 0, self.cap);
+            Vec::from_raw_parts(self.ptr as *mut u8, 0, self.cap);
         }
     }
 }
@@ -60,6 +60,7 @@ impl Arena {
         (ptr_addr - addr) as u32
     }
 }
+
 impl Allocator for Arena {
     fn alloc(&self, align: usize, size: usize) -> u32 {
         assert_eq!(align & align - 1, 0, "align must be power of 2");
@@ -107,6 +108,7 @@ mod test {
         let n: usize = 7;
         println!("{},{:b}", n, !n);
     }
+
     #[test]
     fn test_arena() {
         {

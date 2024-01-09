@@ -2,12 +2,8 @@
 #![allow(dead_code)] // TODO(you): remove this lint after implementing this mod
 
 
-mod iterator;
-mod builder;
-mod tests;
-
 use std::fmt;
-use std::fs::{File};
+use std::fs::File;
 use std::io::Write;
 use std::mem::size_of;
 use std::os::windows::fs::FileExt;
@@ -18,6 +14,10 @@ use anyhow::{anyhow, Result};
 use bytes::{Buf, BufMut, Bytes};
 
 use crate::block::Block;
+
+mod iterator;
+mod builder;
+mod tests;
 
 pub type BlockCache = moka::sync::Cache<(usize, usize), Arc<Block>>;
 
@@ -72,7 +72,7 @@ pub struct FileObject(File);
 
 impl FileObject {
     pub fn read(&self, offset: u64, len: u64) -> Result<Vec<u8>> {
-        let mut buf = vec![0;len as usize];
+        let mut buf = vec![0; len as usize];
         let r = self.0.seek_read(&mut buf, offset)?;
         println!("read buf {:?}", buf);
         Ok(buf)
@@ -116,13 +116,15 @@ pub struct SsTable {
     /// The offset that indicates the start point of meta blocks in `file`.
     block_meta_offset: u64,
     sst_id: usize,
-    block_cache:Option<Arc<BlockCache>>
+    block_cache: Option<Arc<BlockCache>>,
 }
+
 impl fmt::Display for SsTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "block meta {:?}, offset {:?}", &self.block_metas, self.block_meta_offset)
     }
 }
+
 impl SsTable {
     #[cfg(test)]
     pub(crate) fn open_for_test(file: FileObject) -> Result<Self> {
@@ -140,7 +142,7 @@ impl SsTable {
             block_metas: BlockMeta::decode_block_meta(&raw_meta[..]),
             block_meta_offset: meta_off,
             sst_id: id,
-            block_cache
+            block_cache,
         })
     }
 
@@ -174,25 +176,24 @@ impl SsTable {
         for meta in &self.block_metas {
             println!("{:?}", meta)
         }
-       self.block_metas.partition_point(|e| e.first_key <= key).saturating_sub(1)
+        self.block_metas.partition_point(|e| e.first_key <= key).saturating_sub(1)
     }
 
     /// Get number of data blocks.
     pub fn num_of_blocks(&self) -> usize {
-       self.block_metas.len()
+        self.block_metas.len()
     }
-
-
 }
+
 #[test]
 fn test() {
-    let v = vec![1,2,3];
-    let r = v.partition_point(|e|*e<0).saturating_sub(1);
+    let v = vec![1, 2, 3];
+    let r = v.partition_point(|e| *e < 0).saturating_sub(1);
     println!("{}", r);
-    let r = v.partition_point(|e|*e<=1);
+    let r = v.partition_point(|e| *e <= 1);
     println!("{}", r);
-    let r = v.partition_point(|e|*e<=2);
+    let r = v.partition_point(|e| *e <= 2);
     println!("{}", r);
-    let r = v.partition_point(|e|*e>2);
+    let r = v.partition_point(|e| *e > 2);
     println!("{}", r);
 }

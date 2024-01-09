@@ -1,10 +1,10 @@
-mod arena;
-mod list;
-mod key;
-
 pub use arena::*;
 pub use key::*;
 pub use list::*;
+
+mod arena;
+mod list;
+mod key;
 
 const MAX_HEIGHT: usize = 20;
 const HEIGHT_INCREASE: u32 = u32::MAX / 3;
@@ -18,15 +18,18 @@ pub trait Allocator {
 #[cfg(test)]
 mod tests {
     use std::alloc::Layout;
+    use std::collections::BTreeMap;
     use std::mem;
     use std::ops::Bound;
     use std::sync::atomic::AtomicPtr;
-    use bytes::{Buf, Bytes};
-    use rand::{Rng};
 
+    use bytes::Bytes;
+    use rand::Rng;
+
+    use crate::map_bound;
     use crate::skip_list::{FixedLengthSuffixComparator, FlexibleCompartor};
 
-    use super::{list::Skiplist};
+    use super::list::Skiplist;
 
     #[test]
     fn test_find_near() {
@@ -114,7 +117,6 @@ mod tests {
     fn test_skl_rang_iter() {
         let comp = FlexibleCompartor::new(8);
         let skl = Skiplist::with_capacity(comp, 1024 * 1024);
-        let mut rng = rand::thread_rng();
 
         for i in 0..10 {
             let r = skl.put(format!("{}", i), i.to_string());
@@ -126,17 +128,16 @@ mod tests {
 
 
         let left = "1".as_bytes();
-        let start = Bound::Included(left);
-        let right = "2".as_bytes();
-        let end = Bound::Included(right);
-        let mut it = skl.range_ref(start, end);
-        while it.valid() {
-            println!("{:?}, {:?}",it.key(), it.value());
-            it.next();
+        let start = Bound::Excluded(left);
+        let right = "3".as_bytes();
+        let end = Bound::Excluded(right);
+        let mut it = skl.range_ref(map_bound(start), map_bound(end));
+        it.seek_to_first();
+        while let Some((k, v)) = it.next() {
+            println!("{:?}, {:?}", k, v);
         }
-
-        assert!(!it.valid())
     }
+
     #[test]
     fn test_bytes() {
         println!("{}", mem::size_of::<Bytes>());
@@ -164,5 +165,18 @@ mod tests {
         let c1 = FixedLengthSuffixComparator::new(1);
         let c2 = FixedLengthSuffixComparator::new(2);
         println!("{:p}, {:p}", &c1, &c2)
+    }
+
+    #[test]
+    fn test_option() {
+        let mut map = BTreeMap::new();
+        for i in 0..10 {
+            map.insert(i, i);
+        }
+        let r = map.range((3..3));
+
+        for i in r {
+            println!("{:?}", i)
+        }
     }
 }

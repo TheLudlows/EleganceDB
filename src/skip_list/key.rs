@@ -1,6 +1,7 @@
 use std::cmp;
-use bytes::Bytes;
 use std::cmp::Ordering;
+
+use bytes::Bytes;
 
 pub trait KeyComparator {
     fn compare_key(&self, lhs: &[u8], rhs: &[u8]) -> Ordering;
@@ -11,10 +12,12 @@ pub trait KeyComparator {
 pub struct FixedLengthSuffixComparator {
     len: usize,
 }
+
 #[derive(Default, Debug, Clone, Copy)]
-pub struct FlexibleCompartor{
-    len: usize
+pub struct FlexibleCompartor {
+    len: usize,
 }
+
 impl FlexibleCompartor {
     pub fn new(len: usize) -> Self {
         FlexibleCompartor {
@@ -24,22 +27,20 @@ impl FlexibleCompartor {
 }
 
 impl KeyComparator for FlexibleCompartor {
-
     fn compare_key(&self, lhs: &[u8], rhs: &[u8]) -> Ordering {
         let max_len = cmp::min(cmp::min(self.len, lhs.len()), rhs.len());
-        let(left, right) = (&lhs[0..max_len], &rhs[0..max_len]);
+        let (left, right) = (&lhs[0..max_len], &rhs[0..max_len]);
         match left.cmp(&right) {
-            Ordering::Less =>  Ordering::Less,
+            Ordering::Less => Ordering::Less,
             Ordering::Equal => lhs.cmp(&rhs),
             Ordering::Greater => Ordering::Greater
         }
     }
 
     fn same_key(&self, lhs: &[u8], rhs: &[u8]) -> bool {
-       lhs.cmp(rhs) == Ordering::Equal
+        lhs.cmp(rhs) == Ordering::Equal
     }
 }
-
 
 
 impl FixedLengthSuffixComparator {

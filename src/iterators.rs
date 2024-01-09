@@ -1,5 +1,3 @@
-
-
 pub trait StorageIterator {
     /// Get the current value.
     fn value(&self) -> &[u8];

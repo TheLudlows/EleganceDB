@@ -1,24 +1,25 @@
+use std::fmt;
+
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 pub mod iterator;
 mod tests;
 pub mod block_builder;
+
 #[derive(Default, Debug)]
 pub struct Block {
     data: Vec<u8>,
     offsets: Vec<u16>,
     //crc:u32
 }
-use std::fmt;
-use std::str::from_utf8;
 
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "block {:?}, offset {:?}", &self.data, &self.offsets)
     }
 }
-impl Block {
 
+impl Block {
     pub fn encode(&self) -> Bytes {
         let mut block = BytesMut::with_capacity(self.block_size());
         block.put(&self.data[..]);
